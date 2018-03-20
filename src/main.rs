@@ -7,13 +7,20 @@ mod turing;
 #[cfg(feature = "gtk_3_10")]
 mod example {
 
+    use std::collections::HashMap;
+
+    struct GridHelper {
+        chars: HashMap<char>,
+        state_count: i32
+    }
+
     use gio;
     use gtk;
     use pango;
     use gio::prelude::*;
     use gtk::prelude::*;
     use gtk::{
-        ApplicationWindow, Builder, Button, Dialog
+        ApplicationWindow, Builder, Button, Dialog, Window
     };
 
 
@@ -95,6 +102,22 @@ mod example {
 
     pub fn init_rules_window(builder: &gtk::Builder, machine: &Rc<RefCell<Machine>>) {         
 
+        let grid_helper = Rc<RefCell<GridHelper>>::new(GridHelper { chars: HashMap::new(), state_count: 0 });
+        let rule_window: Window = builder.get_object("rulesWindow")
+            .expect("Couldn't get window");
+        rules_window.set_title("Rules Set Window");
+
+        let rules_grid: Grid = builder.get_object("rulesGrid")
+            .expect("couldn't get rules grid");
+        rules_grid.insert_row(0);
+
+        let button_add_state = builder.get_object("addRuleButton")
+            .expect("Couldn't get add state button");
+        button_add_state.connect_clicked(clone!(rules_grid => move |_| {
+            let t = grid_helper.borrow().state_counr;
+            grid_helper.borrow_mut().state_count = t + 1
+            rules_grid.insert_column(t);
+        }));
         let mut states = vec![];
         let mut state = HashMap::new();
         state.insert('0', Rule::Right('1',0));
