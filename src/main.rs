@@ -42,7 +42,7 @@ mod example {
 
     }
 
-    pub fn init_tape_dialog(builder : &gtk::Builder, main_tape_entry: gtk::Entry, machine: & Rc<RefCell<Machine>>) {
+    pub fn init_tape_dialog(builder: &gtk::Builder, main_tape_entry: gtk::Entry, machine: & Rc<RefCell<Machine>>) {
         let tape_dialog: Dialog = builder
                              .get_object("tapeDialog")
                              .expect("Couldn't get dialog for tape");
@@ -93,7 +93,15 @@ mod example {
         }));
     }
 
-    pub fn init_rules_window() {
+    pub fn init_rules_window(builder: &gtk::Builder, machine: &Rc<RefCell<Machine>>) {         
+
+        let mut states = vec![];
+        let mut state = HashMap::new();
+        state.insert('0', Rule::Right('1',0));
+        state.insert('1', Rule::Left('0',0));
+        state.insert('#', Rule::Right('#',0));
+        states.push(State { rules: state });
+
 
     }
 
@@ -103,22 +111,16 @@ mod example {
         let window: ApplicationWindow = builder.get_object("turingAppWindow").expect("Couldn't get window");
         window.set_application(application);
         window.set_title("Tutturu Turing Machine");
-     
-        let mut states = vec![];
-        let mut state = HashMap::new();
-        state.insert('0', Rule::Right('1',0));
-        state.insert('1', Rule::Left('0',0));
-        state.insert('#', Rule::Right('#',0));
-        states.push(State { rules: state });
 
         let tape_entry: gtk::Entry = builder.get_object("entryWorkingTape").expect("Couldn't get entry working tape");
         tape_entry.set_editable(false);
         let tape_m = Tape{ tape: vec![], head: 0 };
-        let machine: Rc<RefCell<Machine>> = Rc::new(RefCell::new(Machine::build_new( tape_m, states))); 
+        let machine: Rc<RefCell<Machine>> = Rc::new(RefCell::new(Machine::build_new( tape_m, vec![]))); 
     
         let main_tape_entry = tape_entry.clone();
 
         init_tape_dialog(&builder, main_tape_entry, &machine);
+        init_rules_window(&builder, &machine);
 
         let button_step: Button = builder.get_object("buttonStep").expect("Couldn't get button5");
         button_step.connect_clicked(clone!(machine => move |_| {
@@ -140,7 +142,6 @@ mod example {
             Inhibit(false)
         }));
         window.show_all();
-
     }
 
     pub fn main() {
