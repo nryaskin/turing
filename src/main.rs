@@ -7,10 +7,9 @@ mod turing;
 #[cfg(feature = "gtk_3_10")]
 mod example {
 
-    use std::collections::HashMap;
-
+    use std::collections::HashSet;
     struct GridHelper {
-        chars: HashMap<char>,
+        chars: HashSet<char>,
         state_count: i32
     }
 
@@ -49,7 +48,7 @@ mod example {
 
     }
 
-    pub fn init_tape_dialog(builder: &gtk::Builder, main_tape_entry: gtk::Entry, machine: & Rc<RefCell<Machine>>) {
+    fn init_tape_dialog(builder: &gtk::Builder, main_tape_entry: gtk::Entry, machine: & Rc<RefCell<Machine>>) {
         let tape_dialog: Dialog = builder
                              .get_object("tapeDialog")
                              .expect("Couldn't get dialog for tape");
@@ -100,32 +99,91 @@ mod example {
         }));
     }
 
-    pub fn init_rules_window(builder: &gtk::Builder, machine: &Rc<RefCell<Machine>>) {         
-
-        let grid_helper = Rc<RefCell<GridHelper>>::new(GridHelper { chars: HashMap::new(), state_count: 0 });
-        let rule_window: Window = builder.get_object("rulesWindow")
-            .expect("Couldn't get window");
-        rules_window.set_title("Rules Set Window");
-
-        let rules_grid: Grid = builder.get_object("rulesGrid")
-            .expect("couldn't get rules grid");
-        rules_grid.insert_row(0);
-
-        let button_add_state = builder.get_object("addRuleButton")
-            .expect("Couldn't get add state button");
-        button_add_state.connect_clicked(clone!(rules_grid => move |_| {
-            let t = grid_helper.borrow().state_counr;
-            grid_helper.borrow_mut().state_count = t + 1
-            rules_grid.insert_column(t);
+    fn init_add_char_dialog(builder: &gtk::Builder, rules_grid: &gtk::Grid, rules: &Rc<RefCell<GridHelper>>) {
+        let char_set_dialog: Dialog = builder.get_object("charSelectDialog")
+            .expect("Couldn't get dialog set char");
+        let button_set_char: Button = builder.get_object("newCharButton")
+            .expect("Couldn't get button set char");
+        button_set_char.connect_clicked(clone!(char_set_dialog => move |_| {
+            char_set_dialog.run();
+            char_set_dialog.hide();
         }));
-        let mut states = vec![];
-        let mut state = HashMap::new();
-        state.insert('0', Rule::Right('1',0));
-        state.insert('1', Rule::Left('0',0));
-        state.insert('#', Rule::Right('#',0));
-        states.push(State { rules: state });
+
+        let char_entry: gtk::Entry = builder.get_object("charEntry")
+            .expect("Couldn't get entry for char dialog");
+        let button_ok_char: Button = builder.get_object("charOkButton")
+            .expect("Couldn't get ok button for char dialog");
+
+        button_ok_char.connect_clicked(clone!(char_entry, rules, rules_grid, char_set_dialog => move |_| {
+            let c = char_entry.get_buffer().get_text().chars().next().expect("");
+            if !rules.borrow().chars.contains(&c) {
+                rules.borrow_mut().chars.insert(c);
+                let e: gtk::Label = gtk::Label::new("");
+                e.set_label(&String::from(c.to_string()));
+                rules_grid.attach(&e, 0, rules.borrow().chars.len() as i32, 1, 1);
+                rules_grid.show_all();
+                char_set_dialog.hide();
+            }
+        }));
+
+        let button_cancel_char: Button = builder.get_object("cancelCharButton")
+            .expect("Couldn't get cancel button for char dialog");
+        button_cancel_char.connect_clicked(clone!(char_set_dialog => move |_| {
+            char_set_dialog.hide();
+        }));
+    }
+
+    fn init_rules_window(builder: &gtk::Builder, machine: &Rc<RefCell<Machine>>) {         
+
+        let grid_helper = Rc::new(RefCell::new(GridHelper { chars: HashSet::new(), state_count: 0 }));
+        let rule_window: gtk::Window = builder.get_object("rulesWindow")
+            .expect("Couldn't get window");
+        rule_window.set_title("Rules Set Window");
+
+        let rules_grid: gtk::Grid = builder.get_object("rulesGrid")
+            .expect("couldn't get rules grid");
+        let dummy = gtk::Label::new("symbol\\state");
+        rules_grid.attach(&dummy, 0, 0, 1, 1);
+
+        let button_add_state: Button = builder.get_object("addRuleButton")
+            .expect("Couldn't get add state button");
+        
+        button_add_state.connect_clicked(clone!(rules_grid, grid_helper => move |_| {
+            let t = grid_helper.borrow().state_count + 1;
+            grid_helper.borrow_mut().state_count = t;
+            rules_grid.insert_column(t);
+            let lab: gtk::Label = gtk::Label::new("");
+            lab.set_label(&(String::from("q") + &t.to_string()));
+            rules_grid.attach(&lab, t , 0, 1, 1);
+            rules_grid.show_all();
+        }));
+ 
+        init_add_char_dialog(&builder, &rules_grid, &grid_helper);
+        
+
+        let button_set_rules: Button = builder.get_object("buttonSetRules")
+            .expect("Couldn't get button set rules");
+        button_set_rules.connect_clicked(clone!(rule_window => move |_| {
+            rule_window.fullscreen();
+            rule_window.show_all(); 
+        }));
+
+        let button_ok: Button = builder.get_object("okButton")
+            .expect("Couldn't get ok button");
+        button_ok.connect_clicked(clone!(rules_grid => move |_| {
 
 
+        }));
+        let button_cancel: Button = builder.get_object("cancelButton")
+            .expect("Couldn't get cancel button");
+
+        button_cancel.connect_clicked(clone!( rule_window => move |_| {
+            rule_window.destroy();
+        }));
+        rule_window.connect_delete_event(clone!(rule_window => move |_,_| {
+            rule_window.destroy();
+            Inhibit(false)
+        }));
     }
 
     pub fn build_ui(application: &gtk::Application) {
