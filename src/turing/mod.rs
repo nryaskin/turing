@@ -33,11 +33,4 @@ impl Machine {
            None => println!("There is no rules")
        }
     }
-
-    //format q0:c->cr1
-    pub fn parse_states(state_str: & str) -> Vec<State> {
-            if c == 'q' {
-                
-            }
-    }
 }
