@@ -9,7 +9,7 @@ mod example {
 
     use std::collections::HashSet;
     struct GridHelper {
-        chars: HashSet<char>,
+        chars: Vec<char>,
         state_count: i32
     }
 
@@ -19,7 +19,7 @@ mod example {
     use gio::prelude::*;
     use gtk::prelude::*;
     use gtk::{
-        ApplicationWindow, Builder, Button, Dialog, Window
+        ApplicationWindow, Builder, Button, Dialog, Window, ComboBoxText, WindowType
     };
 
 
@@ -117,7 +117,7 @@ mod example {
         button_ok_char.connect_clicked(clone!(char_entry, rules, rules_grid, char_set_dialog => move |_| {
             let c = char_entry.get_buffer().get_text().chars().next().expect("");
             if !rules.borrow().chars.contains(&c) {
-                rules.borrow_mut().chars.insert(c);
+                rules.borrow_mut().chars.push(c);
                 let e: gtk::Label = gtk::Label::new("");
                 e.set_label(&String::from(c.to_string()));
                 rules_grid.attach(&e, 0, rules.borrow().chars.len() as i32, 1, 1);
@@ -135,7 +135,7 @@ mod example {
 
     fn init_rules_window(builder: &gtk::Builder, machine: &Rc<RefCell<Machine>>) {         
 
-        let grid_helper = Rc::new(RefCell::new(GridHelper { chars: HashSet::new(), state_count: 0 }));
+        let grid_helper = Rc::new(RefCell::new(GridHelper { chars: vec![], state_count: 0 }));
         let rule_window: gtk::Window = builder.get_object("rulesWindow")
             .expect("Couldn't get window");
         rule_window.set_title("Rules Set Window");
@@ -148,13 +148,33 @@ mod example {
         let button_add_state: Button = builder.get_object("addRuleButton")
             .expect("Couldn't get add state button");
         
-        button_add_state.connect_clicked(clone!(rules_grid, grid_helper => move |_| {
+        button_add_state.connect_clicked(clone!(rules_grid, grid_helper, machine => move |_| {
             let t = grid_helper.borrow().state_count + 1;
             grid_helper.borrow_mut().state_count = t;
             rules_grid.insert_column(t);
             let lab: gtk::Label = gtk::Label::new("");
             lab.set_label(&(String::from("q") + &t.to_string()));
             rules_grid.attach(&lab, t , 0, 1, 1);
+            for i in 0..grid_helper.borrow().chars.len() {
+                let b = Button::new();
+                b.set_label("+");
+                b.connect_clicked(clone!(machine, grid_helper, b => move |_| {
+                    if machine.borrow().states.len() < t as usize {
+                        let index =  machine.borrow().states.len();
+                        for _j in index..(t as usize) {
+                            machine.borrow_mut().states.push(State { rules: HashMap::new()});
+                        }
+                    }
+
+                       let d = init_rule_dialog_chooser(&grid_helper, &machine, (t - 1) as usize, grid_helper.borrow().chars[i], &b);
+                        //machine.borrow_mut().states[(t - 1) as usize].rules.insert(grid_helper.borrow().chars[i],Rule::Right('p', 0));
+                       d.show_all();
+
+                    
+                }));
+                rules_grid.attach(&b, t, i as i32 + 1, 1, 1);
+                 
+            }
             rules_grid.show_all();
         }));
  
@@ -170,9 +190,9 @@ mod example {
 
         let button_ok: Button = builder.get_object("okButton")
             .expect("Couldn't get ok button");
-        button_ok.connect_clicked(clone!(rules_grid => move |_| {
-
-
+        button_ok.connect_clicked(clone!(rule_window => move |_| {
+            rule_window.destroy();
+            Inhibit(false);
         }));
         let button_cancel: Button = builder.get_object("cancelButton")
             .expect("Couldn't get cancel button");
@@ -184,6 +204,66 @@ mod example {
             rule_window.destroy();
             Inhibit(false)
         }));
+    }
+
+
+    fn init_rule_dialog_chooser(grid_helper: &Rc<RefCell<GridHelper>>, machine: &Rc<RefCell<Machine>>,i: usize, c: char, b: &gtk::Button) -> gtk::Window {
+        let dialog_window: gtk::Window = gtk::Window::new(WindowType::Popup);
+        let content_box: gtk::Box = gtk::Box::new(gtk::Orientation::Vertical, 100);
+        let combowombo = ComboBoxText::new();
+        for c_items in &grid_helper.borrow().chars {
+            combowombo.append_text(&c_items.to_string());
+        }
+        let ch_sel = combowombo.clone();
+        content_box.add(&combowombo);
+        let combowombo = ComboBoxText::new();
+        combowombo.append_text("left");
+        combowombo.append_text("right");
+        let rule_sel = combowombo.clone();
+        content_box.add(&combowombo);
+        let combowombo = ComboBoxText::new();
+        for i in 0..grid_helper.borrow().state_count{
+            combowombo.append_text(&i.to_string());
+        }
+        let state_sel = combowombo.clone();
+        content_box.add(&combowombo);
+
+        let butt = Button::new();
+        butt.set_label("ok");
+        butt.connect_clicked(clone!(grid_helper, dialog_window, ch_sel, rule_sel, state_sel, machine, b => move |_| {
+            let rule_text = &rule_sel;
+            let rule;
+            let but_name;
+            let ch = ch_sel.get_active_text().unwrap().chars().next().unwrap();
+            let state = state_sel.get_active_text().unwrap().parse::<usize>().unwrap();
+            if rule_text.get_active_text() == Some(String::from("left")) {
+                rule = Rule::Left(ch, state);
+                but_name = ch.to_string() + &String::from("l") + &state.to_string();
+            }
+            else {
+                rule = Rule::Right(ch, state);
+                but_name = ch.to_string() + &String::from("r") + &state.to_string();
+            }
+            machine.borrow_mut().states[i].rules.insert(c, rule);
+            b.set_label(&but_name);
+            /*b.connect_clicked(clone!(machine, grid_helper, b => move |_| {
+                    if machine.borrow().states.len() < i {
+                        let index =  machine.borrow().states.len();
+                        for _j in index..i {
+                            machine.borrow_mut().states.push(State { rules: HashMap::new()});
+                        }
+                    }
+
+                       let d = init_rule_dialog_chooser(&grid_helper, &machine,  i, grid_helper.borrow().chars[i], &b);
+                        //machine.borrow_mut().states[(t - 1) as usize].rules.insert(grid_helper.borrow().chars[i],Rule::Right('p', 0));
+                       d.show_all();
+            }));*/
+            dialog_window.destroy();
+        }));
+        content_box.add(&butt);
+        dialog_window.add(&content_box);
+        
+        return dialog_window;
     }
 
     pub fn build_ui(application: &gtk::Application) {
