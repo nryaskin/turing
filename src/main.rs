@@ -1,3 +1,8 @@
+#[macro_use]
+extern crate serde_derive;
+
+extern crate serde;
+extern crate serde_yaml;
 extern crate gio;
 extern crate gtk;
 extern crate pango;
@@ -8,21 +13,26 @@ mod turing;
 mod example {
 
     use std::collections::HashSet;
+    #[derive(Serialize, Deserialize)]
     struct GridHelper {
         chars: Vec<char>,
         state_count: i32
     }
 
+    use serde_yaml;
     use gio;
     use gtk;
     use pango;
     use gio::prelude::*;
     use gtk::prelude::*;
     use gtk::{
-        ApplicationWindow, Builder, Button, Dialog, Window, ComboBoxText, WindowType
+        ApplicationWindow, Builder, Button, Dialog, Window, ComboBoxText, WindowType, Menu, FileChooserDialog, ResponseType
     };
+    use gio::MenuExt;
 
-
+    use std::fs::File;
+    use std::io::prelude::*;
+    use std::io::BufReader;
     use std::collections::HashMap;
     use std::cell::RefCell;
     use std::rc::Rc;
@@ -230,7 +240,7 @@ mod example {
 
         let butt = Button::new();
         butt.set_label("ok");
-        butt.connect_clicked(clone!(grid_helper, dialog_window, ch_sel, rule_sel, state_sel, machine, b => move |_| {
+        butt.connect_clicked(clone!(dialog_window, ch_sel, rule_sel, state_sel, machine, b => move |_| {
             let rule_text = &rule_sel;
             let rule;
             let but_name;
@@ -246,24 +256,68 @@ mod example {
             }
             machine.borrow_mut().states[i].rules.insert(c, rule);
             b.set_label(&but_name);
-            /*b.connect_clicked(clone!(machine, grid_helper, b => move |_| {
-                    if machine.borrow().states.len() < i {
-                        let index =  machine.borrow().states.len();
-                        for _j in index..i {
-                            machine.borrow_mut().states.push(State { rules: HashMap::new()});
-                        }
-                    }
-
-                       let d = init_rule_dialog_chooser(&grid_helper, &machine,  i, grid_helper.borrow().chars[i], &b);
-                        //machine.borrow_mut().states[(t - 1) as usize].rules.insert(grid_helper.borrow().chars[i],Rule::Right('p', 0));
-                       d.show_all();
-            }));*/
             dialog_window.destroy();
         }));
         content_box.add(&butt);
         dialog_window.add(&content_box);
         
         return dialog_window;
+    }
+
+    fn init_menu_items(application: &gtk::Application) {
+        let menu_bar = gio::Menu::new();
+        let file_menu = gio::Menu::new(); 
+        file_menu.append("_Open", "app.open");
+
+        file_menu.append("_Save", "app.save");
+
+        menu_bar.append_submenu("_File", &file_menu);
+        application.set_app_menu(&menu_bar);
+    }
+
+    fn deserialize(file: & mut File, machine: &Rc<RefCell<Machine>>) {
+        let mut buf_reader = BufReader::new(file);
+        let mut out_str = String::new();
+        buf_reader.read_to_string(& mut out_str);
+        let deserialize: Machine = serde_yaml::from_str(&out_str).unwrap();
+        machine.borrow_mut().tape = deserialize.tape;
+        machine.borrow_mut().states = deserialize.states;
+        machine.borrow_mut().current_state = deserialize.current_state;
+    }
+
+    fn add_actions(application: &gtk::Application, machine: &Rc<RefCell<Machine>>, tape: gtk::Entry) {
+        let open_action = gio::SimpleAction::new("open", None);
+        open_action.connect_activate(clone!(machine => move |_,_| {
+            let file_open = gtk::FileChooserDialog::new(Some("Open machine"), Some(&Window::new(WindowType::Popup)), gtk::FileChooserAction::Open);
+            file_open.add_button("Cancel", 0);
+            file_open.add_button("Ok", 1); //ResponseType into issue
+            if 1 == file_open.run() {
+                if let Some(op_file) = file_open.get_filename(){
+                    if let Ok(mut file) = File::open(&op_file) {
+                        deserialize(& mut file, &machine);
+                    }
+                }
+            }
+            file_open.destroy();
+        }));
+        let save_action = gio::SimpleAction::new("save", None);
+        save_action.connect_activate(clone!(machine => move |_,_| {
+            let file_save = gtk::FileChooserDialog::new(Some("Save machine"), Some(&Window::new(WindowType::Popup)), gtk::FileChooserAction::Save);
+            file_save.add_button("Cancel", 0);
+            file_save.add_button("Ok", 1);
+            if file_save.run() == 1 {
+                if let Some(sv_file) = file_save.get_filename() {
+                    if let Ok(mut file) = File::create(sv_file){
+                        let replacement = Machine{tape: machine.borrow().tape.clone(), states: machine.borrow().states.clone(), current_state: machine.borrow().current_state};
+                        let serialized = serde_yaml::to_string(&replacement).unwrap();
+                        file.write_all(serialized.as_bytes()); 
+                    }
+                }
+            }
+            file_save.destroy();
+        }));
+        application.add_action(&open_action);
+        application.add_action(&save_action);
     }
 
     pub fn build_ui(application: &gtk::Application) {
@@ -273,16 +327,20 @@ mod example {
         window.set_application(application);
         window.set_title("Tutturu Turing Machine");
 
+
+
         let tape_entry: gtk::Entry = builder.get_object("entryWorkingTape").expect("Couldn't get entry working tape");
         tape_entry.set_editable(false);
         let tape_m = Tape{ tape: vec![], head: 0 };
         let machine: Rc<RefCell<Machine>> = Rc::new(RefCell::new(Machine::build_new( tape_m, vec![]))); 
     
         let main_tape_entry = tape_entry.clone();
-
+        
         init_tape_dialog(&builder, main_tape_entry, &machine);
         init_rules_window(&builder, &machine);
-
+        init_menu_items(&application);
+        let main_tape_entry = tape_entry.clone();
+        add_actions(&application, &machine, main_tape_entry);
         let button_step: Button = builder.get_object("buttonStep").expect("Couldn't get button5");
         button_step.connect_clicked(clone!(machine => move |_| {
            machine.borrow_mut().step();
