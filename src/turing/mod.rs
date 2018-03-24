@@ -1,6 +1,7 @@
 pub mod model;
+
 use turing::model::*;
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Machine{
     pub tape: Tape,
     pub states: Vec<State>,

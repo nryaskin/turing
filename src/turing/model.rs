@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Tape {
    pub tape: Vec<char>,
    pub  head: usize,
@@ -34,12 +34,12 @@ impl Tape {
     }
 
 }
-#[derive(Clone)]
+#[derive(Clone,Serialize, Deserialize)]
 pub struct State {
     pub rules: HashMap<char, Rule>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum Rule {
     Left(char, usize),
     Right(char, usize),
