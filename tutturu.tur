@@ -1,0 +1,24 @@
+---
+tape:
+  tape: []
+  head: 0
+states:
+  - rules:
+      "#":
+        Left:
+          - "1"
+          - 1
+      "1":
+        Right:
+          - "0"
+          - 0
+  - rules:
+      "0":
+        Left:
+          - "1"
+          - 1
+      "#":
+        Right:
+          - "0"
+          - 0
+current_state: 0
