@@ -83,17 +83,7 @@ mod example {
         tape_button_ok.connect_clicked(clone!(tape_dialog, machine => move |_| {
             machine.borrow_mut().tape.tape = tape_entry.get_buffer().get_text().chars().collect();
             machine.borrow_mut().tape.head = 0; 
-            let tape = &machine.borrow().tape;
-            main_tape_entry.get_buffer().set_text(&tape.tape.iter().map(|&x| x).collect::<String>());
-        
-            let attr_list = pango::AttrList::new();
-            let mut attr = pango::Attribute::new_background(65535, 0, 0)
-                                                        .expect("Can't get background");
-            attr.set_start_index(tape.head as u32);
-            attr.set_end_index((tape.head + 1) as u32);
-            attr_list.insert(attr);
-            main_tape_entry.set_attributes(&attr_list);
-
+            step_update_function(&main_tape_entry, &machine);
             tape_dialog.hide();
         }));
         let tape_button_cancel: Button = builder
@@ -320,6 +310,19 @@ mod example {
         application.add_action(&save_action);
     }
 
+    fn step_update_function(tape_entry: &gtk::Entry, machine: &Rc<RefCell<Machine>>) {
+        let tape = &machine.borrow().tape;
+        tape_entry.get_buffer().set_text(&tape.tape.iter().map(|&x| x).collect::<String>());
+    
+        let attr_list = pango::AttrList::new();
+        let mut attr = pango::Attribute::new_background(65535, 0, 0)
+                                                    .expect("Can't get background");
+        attr.set_start_index(tape.head as u32);
+        attr.set_end_index((tape.head + 1) as u32);
+        attr_list.insert(attr);
+        tape_entry.set_attributes(&attr_list);
+    }
+
     pub fn build_ui(application: &gtk::Application) {
         let glade_src = include_str!("grid.glade");
         let builder = Builder::new_from_string(glade_src);
@@ -343,17 +346,8 @@ mod example {
         add_actions(&application, &machine, main_tape_entry);
         let button_step: Button = builder.get_object("buttonStep").expect("Couldn't get button5");
         button_step.connect_clicked(clone!(machine => move |_| {
-           machine.borrow_mut().step();
-           let tape = &machine.borrow().tape;
-           tape_entry.get_buffer().set_text(&tape.tape.iter().map(|&x| x).collect::<String>());
-        
-           let attr_list = pango::AttrList::new();
-           let mut attr = pango::Attribute::new_background(65535, 0, 0)
-                                                        .expect("Can't get background");
-           attr.set_start_index(tape.head as u32);
-           attr.set_end_index((tape.head + 1) as u32);
-           attr_list.insert(attr);
-           tape_entry.set_attributes(&attr_list);
+            machine.borrow_mut().step();
+            step_update_function(&tape_entry, &machine);
         }));
 
         window.connect_delete_event(clone!(window => move |_,_| {
