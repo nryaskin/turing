@@ -323,14 +323,39 @@ mod example {
         tape_entry.set_attributes(&attr_list);
     }
 
+
+    #[derive(Clone)]
+    struct BoolProxy {
+        switch: bool,
+    }
+
+    fn init_run_stop_buttons(builder: &gtk::Builder, entry: &gtk::Entry, machine: &Rc<RefCell<Machine>>) {
+        let run_stop_button: Button = builder.get_object("buttonRun").expect("Couldn't get run button");
+
+        let switch = Rc::new(RefCell::new(BoolProxy { switch: false }));
+
+        run_stop_button.connect_clicked(clone!(entry,switch, machine => move |_| {
+            if switch.borrow().switch {
+
+            } else {
+                let tick = clone!(entry, switch, machine => move || {
+                    machine.borrow_mut().step();
+                    step_update_function(&entry ,&machine);
+                    gtk::Continue(switch.borrow().switch)
+                });
+                gtk::timeout_add_seconds(1, tick);
+            }
+            let val = !switch.borrow().switch;
+            switch.borrow_mut().switch = val;
+        }));
+    }
+
     pub fn build_ui(application: &gtk::Application) {
         let glade_src = include_str!("grid.glade");
         let builder = Builder::new_from_string(glade_src);
         let window: ApplicationWindow = builder.get_object("turingAppWindow").expect("Couldn't get window");
         window.set_application(application);
         window.set_title("Tutturu Turing Machine");
-
-
 
         let tape_entry: gtk::Entry = builder.get_object("entryWorkingTape").expect("Couldn't get entry working tape");
         tape_entry.set_editable(false);
@@ -344,6 +369,8 @@ mod example {
         init_menu_items(&application);
         let main_tape_entry = tape_entry.clone();
         add_actions(&application, &machine, main_tape_entry);
+        let main_tape_entry = tape_entry.clone();
+        init_run_stop_buttons(&builder, &main_tape_entry, &machine);
         let button_step: Button = builder.get_object("buttonStep").expect("Couldn't get button5");
         button_step.connect_clicked(clone!(machine => move |_| {
             machine.borrow_mut().step();
