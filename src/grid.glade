@@ -339,7 +339,7 @@
                 </child>
                 <child>
                   <object class="GtkButton" id="buttonRun">
-                    <property name="label" translatable="yes">Run</property>
+                    <property name="label" translatable="yes">Run/Stop</property>
                     <property name="width_request">100</property>
                     <property name="height_request">40</property>
                     <property name="visible">True</property>
