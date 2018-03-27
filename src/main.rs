@@ -83,6 +83,7 @@ mod example {
         tape_button_ok.connect_clicked(clone!(tape_dialog, machine => move |_| {
             machine.borrow_mut().tape.tape = tape_entry.get_buffer().get_text().chars().collect();
             machine.borrow_mut().tape.head = 0; 
+            machine.borrow_mut().current_state = Some(0);
             step_update_function(&main_tape_entry, &machine);
             tape_dialog.hide();
         }));
