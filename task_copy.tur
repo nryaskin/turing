@@ -1,0 +1,88 @@
+---
+tape:
+  tape: []
+  head: 0
+states:
+  - rules:
+      "1":
+        Right:
+          - "1"
+          - 0
+      "0":
+        Right:
+          - "0"
+          - 0
+      "#":
+        Left:
+          - "#"
+          - 1
+  - rules:
+      "1":
+        Left:
+          - "0"
+          - 2
+      "0":
+        Left:
+          - "1"
+          - 1
+      "#":
+        Right:
+          - "#"
+          - 5
+  - rules:
+      "0":
+        Left:
+          - "0"
+          - 2
+      "#":
+        Left:
+          - "#"
+          - 3
+      "1":
+        Left:
+          - "1"
+          - 2
+  - rules:
+      "0":
+        Right:
+          - "1"
+          - 4
+      "1":
+        Right:
+          - "2"
+          - 4
+      "#":
+        Right:
+          - "1"
+          - 4
+      "2":
+        Left:
+          - "0"
+          - 3
+  - rules:
+      "1":
+        Right:
+          - "1"
+          - 4
+      "2":
+        Right:
+          - "2"
+          - 4
+      "0":
+        Right:
+          - "0"
+          - 4
+      "#":
+        Right:
+          - "#"
+          - 0
+  - rules:
+      "0":
+        Right:
+          - "#"
+          - 5
+      "1":
+        Right:
+          - "#"
+          - 5
+current_state: 0
